@@ -1,0 +1,18 @@
+# Dependencies
+__pycache__/
+*.pyc
+*.pyo
+
+# Results (generated)
+*_results.json
+*_results.csv
+results_checkpoint.json
+*_run.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

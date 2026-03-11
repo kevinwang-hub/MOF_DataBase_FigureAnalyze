@@ -1,0 +1,139 @@
+# MOF Database Figure Analyzer
+
+Automated extraction of structured data from scientific figures in Metal-Organic Framework (MOF) papers using local vision LLMs via [Ollama](https://ollama.com/).
+
+## Overview
+
+This tool analyzes images (PXRD patterns, TGA curves, N₂ isotherms, crystal structure diagrams, crystallographic tables, etc.) from parsed MOF papers and extracts structured JSON data following a consistent schema.
+
+**Key features:**
+- **Ollama structured output** — Forces the vision model to produce JSON matching a predefined schema (no free-form output)
+- **Batch processing** — Processes entire paper folders with checkpoint/resume support
+- **Paper context awareness** — Loads paper text/metadata to help resolve material names and abbreviations
+- **Fallback mechanism** — If structured output fails, falls back to free-form extraction
+- **CSV + JSON output** — Results saved in both formats for easy analysis
+
+## Schema
+
+Every image is analyzed into a standardized JSON object with these top-level fields:
+
+| Field | Description |
+|---|---|
+| `material` | Name, formula, topology, crystal system, space group |
+| `building_blocks` | Metal nodes, organic linkers, SBUs |
+| `synthesis` | Method, temperature, time, solvents, precursors |
+| `structure` | Unit cell parameters, pore size/volume, dimensionality |
+| `characterization` | BET surface area, XRD peaks, TGA decomposition, techniques |
+| `performance` | Gas adsorption, selectivity, stability |
+| `figure_metadata` | Figure type, confidence level, notes |
+
+## Requirements
+
+- **Ollama** running locally with `gemma3:27b` model
+- Python 3.11+
+- `requests`, `pandas`
+
+```bash
+# Install Ollama and pull the model
+brew install ollama
+ollama pull gemma3:27b
+
+# Install Python dependencies
+pip install requests pandas
+```
+
+## Usage
+
+### Single image analysis
+
+```bash
+python test_gemma_vision.py "path/to/figure.png"
+```
+
+### Batch analysis of a paper folder
+
+The paper folder should have this structure:
+```
+paper_folder/
+├── *.md                      # Paper text (optional, for context)
+├── *_content_list_v2.json    # Structured sections (optional)
+├── *_middle.json             # Parsed blocks (optional)
+├── *_model.json              # Layout model output (optional)
+└── image/                    # or images/
+    ├── figure1.jpg
+    ├── figure2.png
+    └── ...
+```
+
+Run batch analysis:
+```bash
+# Full run
+python batch_analyze.py /path/to/paper_folder --output-dir ./results
+
+# Test with first N images
+python batch_analyze.py /path/to/paper_folder --limit 5 --output-dir ./results
+
+# Resume interrupted run
+python batch_analyze.py /path/to/paper_folder --resume --output-dir ./results
+```
+
+### Analyze results
+
+```bash
+python _summary.py
+```
+
+## Output
+
+- `mof_analysis_results.json` — Full structured results (one object per image)
+- `mof_analysis_results.csv` — Flattened tabular format for Excel/pandas
+- `results_checkpoint.json` — Checkpoint file for resume support
+
+## Example output
+
+```json
+{
+  "material": {
+    "name": "Al-fumarate"
+  },
+  "building_blocks": {
+    "metal_nodes": [{"element": "Al"}],
+    "organic_linkers": [{"name": "fumarate"}]
+  },
+  "structure": {
+    "pore_size_angstrom": 12,
+    "pore_volume_cm3g": 0.5
+  },
+  "characterization": {
+    "techniques_observed": ["Nitrogen sorption analysis"]
+  },
+  "performance": {
+    "gas_adsorption": [{
+      "gas": "N2",
+      "uptake_value": 300,
+      "uptake_unit": "cm^3/g",
+      "conditions": "STP"
+    }]
+  },
+  "figure_metadata": {
+    "figure_type": "sorption isotherm",
+    "confidence": "high"
+  }
+}
+```
+
+## Tested on
+
+| Paper | Images | Success Rate |
+|---|---|---|
+| ZIF stability (02439suppappendix) | 76 | 100% |
+| Fe/Co bdp (BFnature15732) | 82 | 97.6% |
+| ZIF-61/62/68/69/70 (banerjee.som) | 111 | 100% |
+
+## Model
+
+Uses **Gemma 3 27B** via Ollama with structured output (JSON Schema constraint). The model is forced at the grammar level to only produce keys defined in the schema — no free-form hallucination of field names.
+
+## License
+
+MIT
